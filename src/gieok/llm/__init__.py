@@ -1,0 +1,1 @@
+"""Infrastructure: local LLM adapters."""

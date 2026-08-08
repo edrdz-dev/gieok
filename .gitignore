@@ -13,6 +13,10 @@ build/
 .coverage
 htmlcov/
 
+# Local tooling (Claude Code skills and their lockfile)
+.claude/
+skills-lock.json
+
 # Project artefacts
 .chroma/
 sample_docs/

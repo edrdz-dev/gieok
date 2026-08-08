@@ -24,8 +24,9 @@ class Settings(BaseSettings):
 
     ollama_host: str = Field(default="http://localhost:11434")
     # Chosen by measurement on a CPU-only laptop; see "Choosing models" in the README.
-    # Several multilingual embedders scored equivalently, so this one wins on speed and
-    # size rather than on accuracy. The generator is small and does not emit reasoning.
+    # Several multilingual embedders scored equivalently and one is measurably faster;
+    # this one wins the tie on being the most actively maintained, not on the numbers.
+    # The generator is small and, unlike the alternatives, emits no reasoning tokens.
     embedding_model: str = Field(default="granite-embedding:278m")
     chat_model: str = Field(default="granite4.1:3b")
 

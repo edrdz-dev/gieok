@@ -90,9 +90,17 @@ document that answers them, because that is the case that breaks retrieval.
 
 The five multilingual models are statistically indistinguishable from one another; an
 earlier pilot on a smaller corpus appeared to rank them and that ranking did not survive.
-`granite-embedding:278m` is the default, but `paraphrase-multilingual` scores marginally
-higher and indexes faster at the same size — on this evidence either is defensible, and the
-difference is noise (p=0.727).
+`granite-embedding:278m` is the default. It is *not* the fastest of the group:
+`paraphrase-multilingual` matches it on size and vector width while indexing about 27%
+quicker, consistently across runs, and scores two questions higher. Since that gap is noise
+(p=0.727), the tie is broken on something the benchmark cannot measure — `granite-embedding`
+is the more recent model and the one under active development, which matters more over the
+life of a project than eight seconds of indexing. Swap it with one environment variable if
+your priority is different:
+
+```bash
+GIEOK_EMBEDDING_MODEL=paraphrase-multilingual gieok ingest ./docs --reset
+```
 
 What does survive is the gap to `nomic-embed-text`, the most-downloaded embedding model on
 Ollama, which loses 19-1 head to head and answers **one** of sixteen questions asked in the

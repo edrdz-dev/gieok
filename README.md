@@ -1,5 +1,9 @@
 # gieok
 
+[![CI](https://github.com/edrdz-dev/gieok/actions/workflows/ci.yml/badge.svg)](https://github.com/edrdz-dev/gieok/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
+
 Ask questions about your own documents, entirely offline.
 
 *gieok* — Korean 기억, "memory". Which is what this is: somewhere to put what you have

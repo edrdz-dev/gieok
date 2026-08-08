@@ -49,19 +49,19 @@ so identical chunks overwrite themselves rather than accumulating.
 
 ## Configuration
 
-Every setting is an environment variable prefixed `LAE_`, or a line in a local `.env`.
+Every setting is an environment variable prefixed `GIEOK_`, or a line in a local `.env`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `LAE_OLLAMA_HOST` | `http://localhost:11434` | Ollama daemon address |
-| `LAE_EMBEDDING_MODEL` | `granite-embedding:278m` | Model used for embeddings |
-| `LAE_CHAT_MODEL` | `granite4.1:3b` | Model used for generation |
-| `LAE_CHROMA_PATH` | `.chroma` | Where ChromaDB persists |
-| `LAE_COLLECTION_NAME` | `documents` | Collection name |
-| `LAE_CHUNK_SIZE` | `800` | Max chunk length, in characters |
-| `LAE_CHUNK_OVERLAP` | `150` | Context carried between chunks |
-| `LAE_EMBED_BATCH_SIZE` | `32` | Chunks embedded per round trip |
-| `LAE_TOP_K` | `6` | Chunks retrieved per question |
+| `GIEOK_OLLAMA_HOST` | `http://localhost:11434` | Ollama daemon address |
+| `GIEOK_EMBEDDING_MODEL` | `granite-embedding:278m` | Model used for embeddings |
+| `GIEOK_CHAT_MODEL` | `granite4.1:3b` | Model used for generation |
+| `GIEOK_CHROMA_PATH` | `.chroma` | Where ChromaDB persists |
+| `GIEOK_COLLECTION_NAME` | `documents` | Collection name |
+| `GIEOK_CHUNK_SIZE` | `800` | Max chunk length, in characters |
+| `GIEOK_CHUNK_OVERLAP` | `150` | Context carried between chunks |
+| `GIEOK_EMBED_BATCH_SIZE` | `32` | Chunks embedded per round trip |
+| `GIEOK_TOP_K` | `6` | Chunks retrieved per question |
 
 Changing the embedding model invalidates the index — re-run `ingest --reset`.
 
@@ -79,24 +79,24 @@ questions with a known set of acceptable target chunks, deliberately paraphrased
 overlap does not do the work. Half the questions are asked in the other language from the
 document that answers them, because that is the case that breaks retrieval.
 
-| Model | Size | Recall@6 | Recall@4 | MRR | vs. best (paired McNemar) |
+| Model | Size | Recall@6 | ES→EN | Index time | vs. best |
 | --- | --- | --- | --- | --- | --- |
-| nomic-embed-text-v2-moe | 957 MB | 36/44 | 33/44 | 0.582 | — |
-| paraphrase-multilingual | 562 MB | 38/44 | 32/44 | 0.566 | p=1.000 |
-| **granite-embedding:278m** | 562 MB | 37/44 | 31/44 | 0.572 | p=0.754 |
-| embeddinggemma | 621 MB | 29/44 | 28/44 | 0.380 | p=0.227 |
-| bge-m3 | 1.2 GB | 31/44 | 28/44 | 0.574 | p=0.180 |
-| nomic-embed-text | 274 MB | 19/44 | 16/44 | 0.338 | **p<0.0001** |
+| paraphrase-multilingual | 562 MB | 37/44 | 13/16 | **19.8s** | — |
+| bge-m3 | 1.2 GB | 36/44 | 13/16 | 94.4s | p=1.000 |
+| **granite-embedding:278m** | 562 MB | 35/44 | 13/16 | 27.1s | p=0.727 |
+| nomic-embed-text-v2-moe | 957 MB | 35/44 | 12/16 | 59.1s | p=0.754 |
+| embeddinggemma | 621 MB | 32/44 | 10/16 | 36.9s | p=0.227 |
+| nomic-embed-text | 274 MB | 19/44 | **1/16** | 34.1s | **p<0.0001** |
 
-The five multilingual models are **statistically indistinguishable from one another** — a
-smaller pilot on 13 chunks appeared to rank them, and that ranking did not survive a larger
-sample. What does survive is the gap to `nomic-embed-text`, the most-downloaded embedding
-model on Ollama, which loses 17-0 head-to-head against the leader and collapses to 1/16 on
-questions asked in the other language.
+The five multilingual models are statistically indistinguishable from one another; an
+earlier pilot on a smaller corpus appeared to rank them and that ranking did not survive.
+`granite-embedding:278m` is the default, but `paraphrase-multilingual` scores marginally
+higher and indexes faster at the same size — on this evidence either is defensible, and the
+difference is noise (p=0.727).
 
-`granite-embedding:278m` is the default because among equals it is the smallest and the
-fastest to index (16.9s for the corpus, against 53.1s for `nomic-embed-text-v2-moe` and
-83.7s for `bge-m3`) — not because it retrieves better.
+What does survive is the gap to `nomic-embed-text`, the most-downloaded embedding model on
+Ollama, which loses 19-1 head to head and answers **one** of sixteen questions asked in the
+other language from the document holding the answer.
 
 **Retrieval depth matters more than the model.** On the same corpus, raising `top_k` from 4
 to 6 lifted recall by more than any model swap, and unlike the model swap it is significant:

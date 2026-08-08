@@ -14,9 +14,9 @@ def test_defaults_are_sane():
 
 
 def test_environment_variables_override_defaults(monkeypatch):
-    monkeypatch.setenv("LAE_CHAT_MODEL", "qwen2.5:7b")
-    monkeypatch.setenv("LAE_TOP_K", "9")
-    monkeypatch.setenv("LAE_CHROMA_PATH", "/tmp/custom-chroma")
+    monkeypatch.setenv("GIEOK_CHAT_MODEL", "qwen2.5:7b")
+    monkeypatch.setenv("GIEOK_TOP_K", "9")
+    monkeypatch.setenv("GIEOK_CHROMA_PATH", "/tmp/custom-chroma")
 
     settings = Settings()
     assert settings.chat_model == "qwen2.5:7b"

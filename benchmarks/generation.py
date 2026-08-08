@@ -143,8 +143,8 @@ def main() -> None:
     # verbatim or does not. Vaguer questions make "grounded" a matter of interpretation.
     nonce = secrets.token_hex(8)
     question = "Which environment variable controls how many chunks are retrieved?"
-    marker = "`LAE_TOP_K`"
-    expected = ("LAE_TOP_K",)
+    marker = "`GIEOK_TOP_K`"
+    expected = ("GIEOK_TOP_K",)
     off_topic = "What is the capital city of Australia?"
 
     for model, offset in zip(models, offsets, strict=True):

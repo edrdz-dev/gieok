@@ -44,10 +44,23 @@ HOST = "http://localhost:11434"
 
 
 def build_corpus() -> list[Chunk]:
-    """Chunk the repository the same way the application would."""
+    """Chunk the benchmark corpus the same way the application would.
+
+    The corpus is named explicitly rather than globbed over the whole repository, because
+    the ground truth in ``questions.py`` pins exact phrases and would silently rot every
+    time an unrelated document was reworded. It deliberately mixes languages: English
+    source with English docstrings, one English document, and one Spanish fixture. That
+    mix is the condition under which the default embedding model was chosen, so the
+    benchmark has to reproduce it.
+
+    ``CLAUDE.md`` is excluded on purpose. It is a near-translation of the Spanish fixture,
+    and having both would let a model answer a Spanish-targeted question from the English
+    twin, scoring a legitimate answer as a miss.
+    """
     root = Path(__file__).resolve().parent.parent
     documents = list(iter_documents(root / "src", ["*.py"]))
-    documents += [d for d in iter_documents(root, ["*.md"]) if d.source.parent == root]
+    documents += list(iter_documents(root / "README.md"))
+    documents += list(iter_documents(root / "benchmarks" / "fixtures", ["*.md"]))
     return [
         chunk
         for document in documents

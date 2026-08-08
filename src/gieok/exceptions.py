@@ -21,7 +21,7 @@ class OllamaUnavailableError(LocalAiEngineError):
     def __init__(self, host: str) -> None:
         super().__init__(
             f"Cannot reach the Ollama daemon at {host}.\n"
-            "Start it with 'ollama serve', or point LAE_OLLAMA_HOST at the right address."
+            "Start it with 'ollama serve', or point GIEOK_OLLAMA_HOST at the right address."
         )
         self.host = host
 

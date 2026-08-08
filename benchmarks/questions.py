@@ -127,7 +127,7 @@ QUESTIONS: tuple[Question, ...] = tuple(
         _pair(
             "Which environment variable sets how many fragments are retrieved?",
             "¿Que variable de entorno fija cuantos fragmentos se recuperan?",
-            "LAE_TOP_K",
+            "GIEOK_TOP_K",
         ),
         _pair(
             "Why does indexing the same files twice not duplicate anything?",
@@ -161,9 +161,9 @@ QUESTIONS: tuple[Question, ...] = tuple(
             spanish_source=True,
         ),
         _pair(
-            "What was the engineer's professional background beforehand?",
-            "¿Cual es la trayectoria profesional previa del ingeniero?",
-            "Spring Boot",
+            "What should a complex concept be compared to when explaining it?",
+            "¿Con que conviene comparar un concepto complejo al explicarlo?",
+            "arquitectura empresarial",
             spanish_source=True,
         ),
         _pair(

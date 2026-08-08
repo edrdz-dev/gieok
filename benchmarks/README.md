@@ -46,6 +46,17 @@ are the generator's own rather than the retriever's.
 These are the traps that produced wrong answers during development, all of them now
 handled in code:
 
+**The corpus is named, not globbed.** `build_corpus()` lists exactly which files it
+indexes rather than sweeping the repository, and it reads its Spanish half from
+`fixtures/guia-arquitectura-es.md` rather than from `CLAUDE.md`. Ground truth pinned to
+prose that evolves for unrelated reasons rots silently: an edit to `CLAUDE.md` removed a
+phrase two questions depended on, and only the fail-fast `LookupError` in `resolve_targets`
+kept that from becoming a quietly wrong benchmark. The fixture is frozen on purpose.
+
+`CLAUDE.md` itself is excluded even though it is now in English, because it is a near
+translation of that fixture; keeping both would let a model answer a Spanish-targeted
+question from the English twin and be scored as a miss for a legitimate answer.
+
 **Markers, not chunk indices.** Ground truth in `questions.py` identifies target passages
 by distinctive substring. Indices rot the moment a source file is edited and chunk
 boundaries shift. Matching happens on whitespace-flattened text, so a marker survives a
@@ -78,25 +89,28 @@ results, since the same weights produce the same vectors.
 
 ## Current results
 
-CPU-only, Intel i5-1135G7, no discrete GPU. Corpus 113 chunks, 44 questions, k=6.
+CPU-only, Intel i5-1135G7, no discrete GPU. Corpus 116 chunks, 44 questions, k=6.
 
 ### Embedding models
 
 | Model | Size | Recall@6 | ES→EN | Index time | vs. best |
 | --- | --- | --- | --- | --- | --- |
-| granite-embedding:278m | 562 MB | 39/44 | 15/16 | 28.6s | — |
-| paraphrase-multilingual | 562 MB | 39/44 | 14/16 | **19.6s** | p=1.000 |
-| nomic-embed-text-v2-moe | 957 MB | 38/44 | 13/16 | 58.6s | p=1.000 |
-| bge-m3 | 1.2 GB | 38/44 | 14/16 | 92.4s | p=1.000 |
-| embeddinggemma | 621 MB | 32/44 | 10/16 | 35.9s | p=0.092 |
-| nomic-embed-text | 274 MB | 21/44 | **2/16** | 33.7s | **p=0.0001** |
+| paraphrase-multilingual | 562 MB | 37/44 | 13/16 | **19.8s** | — |
+| bge-m3 | 1.2 GB | 36/44 | 13/16 | 94.4s | p=1.000 |
+| **granite-embedding:278m** | 562 MB | 35/44 | 13/16 | 27.1s | p=0.727 |
+| nomic-embed-text-v2-moe | 957 MB | 35/44 | 12/16 | 59.1s | p=0.754 |
+| embeddinggemma | 621 MB | 32/44 | 10/16 | 36.9s | p=0.227 |
+| nomic-embed-text | 274 MB | 19/44 | **1/16** | 34.1s | **p<0.0001** |
 
-The five multilingual models are statistically indistinguishable from one another. The
-default picks among equals on size and indexing speed, not on accuracy — a smaller pilot
-appeared to rank them and that ranking did not survive a larger sample.
+The five multilingual models are statistically indistinguishable from one another; an
+earlier pilot on a smaller corpus appeared to rank them and that ranking did not survive.
+`granite-embedding:278m` is the default, but `paraphrase-multilingual` scores marginally
+higher and indexes faster at the same size — on this evidence either is defensible, and the
+difference is noise (p=0.727).
 
 What does survive is the gap to `nomic-embed-text`, the most-downloaded embedding model on
-Ollama, which loses 20-2 head to head and answers 2 of 16 cross-lingual questions.
+Ollama, which loses 19-1 head to head and answers **one** of sixteen questions asked in the
+other language from the document holding the answer.
 
 ### Generation models
 

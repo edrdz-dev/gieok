@@ -1,7 +1,7 @@
 """Application configuration, resolved from the environment.
 
 ``BaseSettings`` is the typed counterpart of an externalised ``application.yml``: values
-come from environment variables (prefixed ``LAE_``) or a local ``.env`` file, and are
+come from environment variables (prefixed ``GIEOK_``) or a local ``.env`` file, and are
 validated once at startup. Misconfiguration therefore fails immediately and loudly rather
 than halfway through an ingest run.
 """
@@ -17,10 +17,10 @@ class Settings(BaseSettings):
     """Runtime settings for the engine.
 
     Every field can be overridden with an environment variable, e.g.
-    ``LAE_CHAT_MODEL=qwen2.5:7b gieok ask "..."``.
+    ``GIEOK_CHAT_MODEL=qwen2.5:7b gieok ask "..."``.
     """
 
-    model_config = SettingsConfigDict(env_prefix="LAE_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="GIEOK_", env_file=".env", extra="ignore")
 
     ollama_host: str = Field(default="http://localhost:11434")
     # Chosen by measurement on a CPU-only laptop; see "Choosing models" in the README.

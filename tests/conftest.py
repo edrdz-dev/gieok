@@ -64,6 +64,18 @@ class InMemoryVectorStore:
     def count(self) -> int:
         return len(self.records)
 
+    def sources(self) -> set[str]:
+        return {chunk.source for chunk, _ in self.records.values()}
+
+    def delete_sources(self, sources) -> int:
+        wanted = set(sources)
+        doomed = [
+            chunk_id for chunk_id, (chunk, _) in self.records.items() if chunk.source in wanted
+        ]
+        for chunk_id in doomed:
+            del self.records[chunk_id]
+        return len(doomed)
+
     def reset(self) -> None:
         self.records.clear()
 

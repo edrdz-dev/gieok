@@ -5,7 +5,7 @@ Chroma ships its own ONNX embedding model and will happily embed for you. We dis
 is responsible for the vector space -- mixing two would silently wreck retrieval quality.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +77,33 @@ class ChromaVectorStore:
     def count(self) -> int:
         """Return the number of chunks currently stored."""
         return int(self._collection.count())
+
+    def sources(self) -> set[str]:
+        """Return every distinct source path currently stored.
+
+        Returns:
+            The set of ``Chunk.source`` values across the whole collection.
+        """
+        result = self._collection.get(include=["metadatas"])
+        metadatas = result.get("metadatas") or []
+        return {str(meta["source"]) for meta in metadatas if meta and meta.get("source")}
+
+    def delete_sources(self, sources: Collection[str]) -> int:
+        """Drop every chunk belonging to ``sources``.
+
+        Args:
+            sources: Source paths whose chunks should be removed.
+
+        Returns:
+            The number of chunks removed.
+        """
+        wanted = list(sources)
+        if not wanted:
+            return 0
+        before = self.count()
+        # One round trip with an $in filter, rather than a delete call per source.
+        self._collection.delete(where={"source": {"$in": wanted}})
+        return before - self.count()
 
     def reset(self) -> None:
         """Drop and recreate the collection."""

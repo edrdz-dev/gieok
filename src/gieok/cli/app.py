@@ -137,6 +137,13 @@ def ingest(
     reset: Annotated[
         bool, typer.Option("--reset", help="Drop the existing collection before indexing.")
     ] = False,
+    prune: Annotated[
+        bool,
+        typer.Option(
+            "--prune/--no-prune",
+            help="Drop indexed chunks whose file is gone from the indexed scope.",
+        ),
+    ] = True,
 ) -> None:
     """Index documents into the local vector store."""
     skipped: list[SkippedDocument] = []
@@ -155,11 +162,17 @@ def ingest(
             on_document=lambda source, count: console.print(
                 f"  [green]OK[/green] {source} [dim]({count} chunks)[/dim]"
             ),
+            prune=prune,
         )
     # Rendered after the `status` block exits, not inside it: painting a panel while the
     # spinner still owns the terminal line is what produces garbled, overlapping output.
     if skipped:
         render_skipped(skipped)
+
+    if report.pruned:
+        console.print(
+            f"[yellow]Pruned[/yellow] {report.pruned} chunks whose file is no longer there."
+        )
 
     console.print(
         f"\n[bold green]Indexed[/bold green] {report.documents} documents "

@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from gieok.core.chunking import chunk_text
+from gieok.core.chunking import chunk_document
 from gieok.core.ports import DocumentLoader, Embedder, VectorStore
 from gieok.models import Chunk
 
@@ -95,9 +95,8 @@ class IngestionService:
         for document in self._loader(root, patterns):
             documents += 1
             document_chunks = 0
-            for chunk in chunk_text(
-                document.content,
-                source=str(document.source),
+            for chunk in chunk_document(
+                document,
                 size=self._chunk_size,
                 overlap=self._chunk_overlap,
             ):

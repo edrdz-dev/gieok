@@ -37,7 +37,7 @@ uv sync
 
 ```bash
 uv run gieok status                      # daemon reachability, models, collection size
-uv run gieok ingest ./docs               # index *.md and *.txt recursively
+uv run gieok ingest ./docs               # index *.md, *.txt and *.pdf recursively
 uv run gieok ingest ./docs --reset       # rebuild the collection from scratch
 uv run gieok ingest ./src -p '*.py'      # custom glob, repeatable
 uv run gieok ask "How is retrieval configured?"
@@ -46,6 +46,11 @@ uv run gieok ask "..." --top-k 8 --no-sources
 
 Re-running `ingest` over unchanged files is idempotent: chunk ids are derived from content,
 so identical chunks overwrite themselves rather than accumulating.
+
+**Supported formats:** `.md`, `.txt`, and `.pdf`. A PDF's text layer is extracted per page,
+so its citations show a page number (`report.pdf p. 12`) rather than just the file name.
+Scanned PDFs with no text layer are skipped and reported with a reason -- gieok does not do
+OCR.
 
 ## Configuration
 

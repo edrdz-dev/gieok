@@ -1,8 +1,11 @@
 """Chunking is pure and decides retrieval quality, so it gets the closest scrutiny."""
 
+from pathlib import Path
+
 import pytest
 
-from gieok.core.chunking import chunk_text
+from gieok.core.chunking import chunk_document, chunk_text
+from gieok.models import Document, Page
 
 SOURCE = "doc.md"
 
@@ -82,6 +85,15 @@ def test_id_changes_when_content_changes():
     assert original.id != edited.id
 
 
+def test_golden_id_for_a_known_non_paginated_chunk():
+    # Fixed against the pre-PDF-support hash formula (`sha256(f"{source}|{index}|{text}")`).
+    # This is the only test that can prove the .md/.txt id space -- and therefore every id
+    # already sitting in the live .chroma/ collection -- survived adding the `page` field to
+    # `Chunk.create`. It must keep passing unmodified for as long as that guarantee holds.
+    (chunk,) = chunks("A short paragraph.", size=100, overlap=20)
+    assert chunk.id == "662a2c0836f8f59bd26a228cfbed3482"
+
+
 @pytest.mark.parametrize(
     ("size", "overlap"),
     [(0, 0), (-10, 0), (100, 100), (100, 150), (100, -1)],
@@ -89,3 +101,56 @@ def test_id_changes_when_content_changes():
 def test_invalid_parameters_are_rejected(size, overlap):
     with pytest.raises(ValueError):
         chunks("some text", size=size, overlap=overlap)
+
+
+# --- chunk_document (page-aware packing) -------------------------------------------------
+
+
+def test_chunk_document_with_no_pages_matches_chunk_text():
+    # A non-paginated Document (the .md/.txt case) must produce byte-identical output to
+    # chunk_text -- this is the guarantee that makes step 4's refactor a no-op for the
+    # formats that already existed before PDF support.
+    text = "\n\n".join(f"Paragraph {n} has some words in it." for n in range(8))
+    document = Document(source=Path(SOURCE), content=text)
+    via_document = list(chunk_document(document, size=90, overlap=15))
+    via_text = list(chunk_text(text, source=SOURCE, size=90, overlap=15))
+    assert via_document == via_text
+
+
+def test_indices_stay_contiguous_across_a_page_boundary():
+    pages = [Page(number=n, content=f"Page {n} content with a few words in it.") for n in (1, 2, 3)]
+    document = Document.paginated(Path("doc.pdf"), pages)
+    result = list(chunk_document(document, size=30, overlap=0))
+    assert [chunk.index for chunk in result] == list(range(len(result)))
+
+
+def test_each_chunk_is_stamped_with_the_page_its_content_starts_on():
+    # Sized so each page's short paragraph fills its own chunk and none pack together:
+    # a direct one-page-per-chunk correspondence, easy to assert against.
+    page1 = Page(number=1, content="AAAA AAAA AAAA AAAA")
+    page2 = Page(number=2, content="BBBB BBBB BBBB BBBB")
+    document = Document.paginated(Path("doc.pdf"), [page1, page2])
+
+    result = list(chunk_document(document, size=25, overlap=0))
+
+    assert [(chunk.page, chunk.text) for chunk in result] == [
+        (1, "AAAA AAAA AAAA AAAA"),
+        (2, "BBBB BBBB BBBB BBBB"),
+    ]
+
+
+def test_overlap_carried_across_a_page_boundary_keeps_the_earlier_page():
+    # The tail carried into the second chunk originates on page 1 (the end of its second
+    # paragraph), even though the chunk's bulk is page 2's content. The chunk is stamped
+    # with the page it *starts* on -- page 1 -- per the documented "less precise but true"
+    # trade-off, not the page most of its text came from.
+    page1 = Page(number=1, content="First paragraph one.\n\nSecond paragraph two words here.")
+    page2 = Page(number=2, content="Third paragraph three words words.")
+    document = Document.paginated(Path("doc.pdf"), [page1, page2])
+
+    result = list(chunk_document(document, size=70, overlap=20))
+
+    assert len(result) == 2
+    assert result[0].page == 1
+    assert result[1].page == 1
+    assert "Third paragraph" in result[1].text

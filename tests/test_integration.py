@@ -10,6 +10,7 @@ Ollama stays stubbed -- the tests must run on a machine with no daemon and no mo
 
 import pytest
 
+from conftest import build_pdf_bytes
 from gieok.core.ingestion import IngestionService
 from gieok.core.rag import RagService
 from gieok.db.chroma_store import ChromaVectorStore
@@ -98,3 +99,22 @@ def test_reset_empties_the_persisted_collection(corpus, chroma, embedder):
     assert chroma.count() == 0
     # The collection must still be usable after being dropped and recreated.
     assert index(corpus, chroma, embedder).chunks == chroma.count()
+
+
+def test_page_survives_the_round_trip_for_a_pdf_source(chroma, embedder, chat, tmp_path):
+    # A separate, PDF-only corpus rather than adding a PDF to `corpus`: the other tests in
+    # this module assert exact document/chunk counts and which file ranks first, and a
+    # third source would perturb every one of those.
+    docs = tmp_path / "pdf_docs"
+    docs.mkdir()
+    (docs / "report.pdf").write_bytes(build_pdf_bytes(["Chroma stores the page metadata."]))
+
+    index(docs, chroma, embedder)
+    sources = RagService(embedder=embedder, store=chroma, chat=chat, top_k=1).retrieve(
+        "page metadata"
+    )
+
+    assert sources
+    assert sources[0].chunk.source.endswith("report.pdf")
+    assert sources[0].chunk.page == 1
+    assert sources[0].chunk.citation.endswith("report.pdf p. 1")

@@ -53,7 +53,7 @@ def build_prompt(question: str, sources: Sequence[RetrievedChunk]) -> str:
         The fully rendered prompt.
     """
     context = "\n\n".join(
-        _CONTEXT_ENTRY.format(n=n, source=retrieved.chunk.source, text=retrieved.chunk.text)
+        _CONTEXT_ENTRY.format(n=n, source=retrieved.chunk.citation, text=retrieved.chunk.text)
         for n, retrieved in enumerate(sources, start=1)
     )
     return PROMPT_TEMPLATE.format(context=context, question=question)

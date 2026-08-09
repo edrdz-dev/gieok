@@ -56,11 +56,17 @@ def build_corpus() -> list[Chunk]:
     ``CLAUDE.md`` is excluded on purpose. It is a near-translation of the Spanish fixture,
     and having both would let a model answer a Spanish-targeted question from the English
     twin, scoring a legitimate answer as a miss.
+
+    ``fixtures/wrapped-text.pdf`` adds a paginated source: two pages of hard-wrapped,
+    justified-looking lines built specifically to exercise ``filesystem.pdf._normalise``'s
+    paragraph-reconstruction step, the one heuristic in this feature (the ``0.75 * width``
+    fill-ratio threshold) invented rather than measured.
     """
     root = Path(__file__).resolve().parent.parent
     documents = list(iter_documents(root / "src", ["*.py"]))
     documents += list(iter_documents(root / "README.md"))
     documents += list(iter_documents(root / "benchmarks" / "fixtures", ["*.md"]))
+    documents += list(iter_documents(root / "benchmarks" / "fixtures", ["*.pdf"]))
     return [
         chunk
         for document in documents

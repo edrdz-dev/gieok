@@ -6,21 +6,28 @@ below this line.
 """
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 
-from gieok.cli.renderers import console, render_error, render_sources, stream_markdown
+from gieok.cli.renderers import (
+    console,
+    render_error,
+    render_skipped,
+    render_sources,
+    stream_markdown,
+)
 from gieok.config import Settings
 from gieok.core.ingestion import IngestionService
 from gieok.core.rag import RagService
 from gieok.db.chroma_store import ChromaVectorStore
 from gieok.exceptions import LocalAiEngineError, OllamaUnavailableError
-from gieok.filesystem.loader import DEFAULT_PATTERNS, iter_documents
+from gieok.filesystem.loader import DEFAULT_PATTERNS, SkipCallback, SkippedDocument, iter_documents
 from gieok.llm.ollama_client import OllamaClient
+from gieok.models import Document
 
 app = typer.Typer(
     name="gieok",
@@ -41,7 +48,7 @@ class Services:
     rag: RagService
 
 
-def build_services(settings: Settings) -> Services:
+def build_services(settings: Settings, *, on_skip: SkipCallback | None = None) -> Services:
     """Construct the object graph.
 
     The composition root: adapters are instantiated here and injected downwards, so no
@@ -49,6 +56,7 @@ def build_services(settings: Settings) -> Services:
 
     Args:
         settings: Validated runtime configuration.
+        on_skip: Called once per file that matched a pattern but could not be indexed.
 
     Returns:
         The wired services.
@@ -62,8 +70,21 @@ def build_services(settings: Settings) -> Services:
         path=settings.chroma_path,
         collection_name=settings.collection_name,
     )
+
+    def loader(root: Path, patterns: Sequence[str]) -> Iterator[Document]:
+        """Close over ``on_skip`` to satisfy ``DocumentLoader`` without widening it.
+
+        A `def`, not `functools.partial`: `partial`'s `__call__` is typed
+        `(*args: Any, **kwargs: Any)`, which satisfies any `Protocol` vacuously under
+        `mypy --strict` -- a real type-safety loss, not just a style preference. Not a
+        `lambda` either (ruff `E731`). The skip channel is wired entirely here, in the
+        composition root, so `core/ports.py`, `core/ingestion.py` and `IngestReport`
+        never need to know it exists.
+        """
+        return iter_documents(root, patterns, on_skip=on_skip)
+
     ingestion = IngestionService(
-        loader=iter_documents,
+        loader=loader,
         embedder=llm,
         store=store,
         chunk_size=settings.chunk_size,
@@ -109,14 +130,17 @@ def ingest(
     path: Annotated[Path, typer.Argument(help="File or directory to index.")],
     pattern: Annotated[
         list[str] | None,
-        typer.Option("--pattern", "-p", help="Glob to match, repeatable. Default: *.md, *.txt"),
+        typer.Option(
+            "--pattern", "-p", help="Glob to match, repeatable. Default: *.md, *.txt, *.pdf"
+        ),
     ] = None,
     reset: Annotated[
         bool, typer.Option("--reset", help="Drop the existing collection before indexing.")
     ] = False,
 ) -> None:
     """Index documents into the local vector store."""
-    services = build_services(Settings())
+    skipped: list[SkippedDocument] = []
+    services = build_services(Settings(), on_skip=skipped.append)
     patterns = tuple(pattern) if pattern else DEFAULT_PATTERNS
 
     if reset:
@@ -132,6 +156,10 @@ def ingest(
                 f"  [green]OK[/green] {source} [dim]({count} chunks)[/dim]"
             ),
         )
+    # Rendered after the `status` block exits, not inside it: painting a panel while the
+    # spinner still owns the terminal line is what produces garbled, overlapping output.
+    if skipped:
+        render_skipped(skipped)
 
     console.print(
         f"\n[bold green]Indexed[/bold green] {report.documents} documents "

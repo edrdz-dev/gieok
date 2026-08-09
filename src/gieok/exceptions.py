@@ -43,6 +43,34 @@ class DocumentNotFoundError(LocalAiEngineError):
         self.patterns = patterns
 
 
+class UnreadableDocumentsError(DocumentNotFoundError):
+    """Raised when matching files were found but none of them could be read.
+
+    Inheriting from ``DocumentNotFoundError`` rather than ``LocalAiEngineError`` directly
+    keeps any existing ``except DocumentNotFoundError`` (in this codebase's own tests, or a
+    caller's) still catching this too -- it is a more specific instance of "nothing usable
+    was found", not an unrelated failure.
+
+    Without this type, a directory of a dozen unreadable PDFs would surface only the
+    generic "No readable documents found" message: ``iter_documents`` raises
+    ``DocumentNotFoundError`` when its generator is exhausted with nothing yielded, that
+    exception is caught and rendered by ``handle_errors`` in ``cli/app.py``, and control
+    never reaches the code that would otherwise print the per-file skip reasons. Carrying
+    the reasons on the exception itself is the only way they survive to the terminal.
+    """
+
+    def __init__(self, path: str, patterns: tuple[str, ...], reasons: tuple[str, ...]) -> None:
+        detail = "; ".join(reasons)
+        # Bypass DocumentNotFoundError.__init__: its generic message is exactly what this
+        # type exists to replace with the per-file reasons.
+        LocalAiEngineError.__init__(
+            self, f"Found {len(reasons)} file(s) at '{path}' but none could be read: {detail}"
+        )
+        self.path = path
+        self.patterns = patterns
+        self.reasons = reasons
+
+
 class EmptyCorpusError(LocalAiEngineError):
     """Raised when a question is asked before anything has been indexed."""
 

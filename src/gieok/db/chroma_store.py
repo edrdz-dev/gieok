@@ -54,7 +54,7 @@ class ChromaVectorStore:
             documents=[chunk.text for chunk in chunks],
             embeddings=[list(vector) for vector in embeddings],
             # Metadata is what lets a retrieved vector be cited back to a file and offset.
-            metadatas=[{"source": chunk.source, "index": chunk.index} for chunk in chunks],
+            metadatas=[_metadata(chunk) for chunk in chunks],
         )
 
     def query(self, embedding: Sequence[float], top_k: int) -> list[RetrievedChunk]:
@@ -111,12 +111,36 @@ class ChromaVectorStore:
             ids, documents, metadatas, distances, strict=True
         ):
             meta = metadata or {}
+            page = meta.get("page")
             chunk = Chunk(
                 id=chunk_id,
                 source=str(meta.get("source", "unknown")),
                 index=int(meta.get("index", 0)),
                 text=text,
+                # `.get` returns None for rows written before `page` existed, which is
+                # exactly the "no page" case Chunk already models -- fully backward
+                # compatible with a collection ingested before this feature.
+                page=int(page) if page is not None else None,
             )
             # Chroma reports cosine *distance* in [0, 2]; similarity is its complement.
             retrieved.append(RetrievedChunk(chunk=chunk, score=1.0 - float(distance)))
         return retrieved
+
+
+def _metadata(chunk: Chunk) -> dict[str, str | int]:
+    """Build the metadata dict Chroma stores alongside a chunk.
+
+    Chroma rejects ``None`` as a metadata value outright, so ``page`` is included only when
+    the chunk actually has one -- an unconditional ``"page": chunk.page`` would raise for
+    every ``.md``/``.txt`` chunk.
+
+    Args:
+        chunk: The chunk being persisted.
+
+    Returns:
+        A metadata mapping safe to hand to ``Collection.upsert``.
+    """
+    meta: dict[str, str | int] = {"source": chunk.source, "index": chunk.index}
+    if chunk.page is not None:
+        meta["page"] = chunk.page
+    return meta

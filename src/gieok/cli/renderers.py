@@ -5,6 +5,7 @@ is what allows the services to report progress through a plain callable and stay
 that a terminal exists at all.
 """
 
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 
 from rich.console import Console
@@ -12,7 +13,9 @@ from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
+from gieok.filesystem.loader import SkippedDocument
 from gieok.models import RetrievedChunk
 
 console = Console()
@@ -41,10 +44,39 @@ def render_sources(sources: Sequence[RetrievedChunk]) -> None:
         table.add_row(
             str(n),
             f"{retrieved.score:.3f}",
-            retrieved.chunk.source,
-            _snippet(retrieved.chunk.text),
+            # A path or excerpt containing a literal `[` would otherwise be interpreted as
+            # Rich markup. `Text` renders as plain content, sidestepping that entirely.
+            Text(retrieved.chunk.citation),
+            Text(_snippet(retrieved.chunk.text)),
         )
     console.print(table)
+
+
+def render_skipped(entries: Sequence[SkippedDocument]) -> None:
+    """Print a warning panel for files that matched a pattern but could not be indexed.
+
+    Grouped by reason rather than listed flat: a directory of a dozen scanned PDFs should
+    read as one explanation with a dozen paths under it, not a dozen repeated sentences.
+
+    Args:
+        entries: Files skipped during the most recent ingest run.
+    """
+    if not entries:
+        return
+
+    by_reason: dict[str, list[str]] = defaultdict(list)
+    for entry in entries:
+        by_reason[entry.reason].append(str(entry.path))
+
+    body = Text()
+    for reason, paths in by_reason.items():
+        if body.plain:
+            body.append("\n")
+        body.append(f"{reason}\n", style="bold")
+        for path in paths:
+            body.append(f"  {path}\n")
+
+    console.print(Panel(body, title="Skipped", border_style="yellow", expand=False))
 
 
 def stream_markdown(fragments: Iterable[str], *, title: str) -> str:

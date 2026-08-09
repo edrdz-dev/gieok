@@ -172,6 +172,17 @@ QUESTIONS: tuple[Question, ...] = tuple(
             "evitar `pip` crudo",
             spanish_source=True,
         ),
+        # --- answered by the wrapped-text PDF fixture (fixtures/wrapped-text.pdf) ---
+        _pair(
+            "What does gieok's PDF text normalisation repair before chunking?",
+            "¿Que repara la normalizacion de texto de PDF de gieok antes de trocear?",
+            "repairing line-wrapping artefacts that a",
+        ),
+        _pair(
+            "What happens to a wrapped PDF page without paragraph reconstruction?",
+            "¿Que le pasa a una pagina de PDF envuelta sin reconstruccion de parrafos?",
+            "falls straight through to the hard character-window",
+        ),
     )
     for q in group
 )

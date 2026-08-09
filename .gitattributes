@@ -1,0 +1,8 @@
+# PDFs are binary, even when they look like text.
+#
+# The hand-built fixtures under tests/ and benchmarks/ are minimal PDFs made almost
+# entirely of ASCII, so Git heuristics classify them as text. On a clone with
+# core.autocrlf=true every LF inside them becomes CRLF, the byte offsets in the xref
+# table stop matching, and pypdf can no longer open the file -- surfacing as a test
+# failure that points nowhere near the real cause.
+*.pdf binary

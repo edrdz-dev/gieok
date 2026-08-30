@@ -9,7 +9,7 @@ dependency arrow points inward only, which is what makes the whole domain layer 
 with a handful of in-memory fakes.
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Collection, Iterator, Sequence
 from pathlib import Path
 from typing import Protocol
 
@@ -44,6 +44,21 @@ class VectorStore(Protocol):
 
     def count(self) -> int:
         """Return the number of chunks currently stored."""
+        ...
+
+    def sources(self) -> set[str]:
+        """Return every distinct ``Chunk.source`` currently stored."""
+        ...
+
+    def delete_sources(self, sources: Collection[str]) -> int:
+        """Drop every chunk belonging to ``sources``.
+
+        Args:
+            sources: Source paths whose chunks should be removed.
+
+        Returns:
+            The number of chunks removed.
+        """
         ...
 
     def reset(self) -> None:

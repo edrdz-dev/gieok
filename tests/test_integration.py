@@ -118,3 +118,28 @@ def test_page_survives_the_round_trip_for_a_pdf_source(chroma, embedder, chat, t
     assert sources[0].chunk.source.endswith("report.pdf")
     assert sources[0].chunk.page == 1
     assert sources[0].chunk.citation.endswith("report.pdf p. 1")
+
+
+def test_pruning_removes_ghost_chunks_from_a_real_collection(corpus, chroma, embedder):
+    """The fakes cannot prove this: Chroma's $in delete filter has to actually work."""
+    index(corpus, chroma, embedder)
+    assert {source.rsplit("/", 1)[-1] for source in chroma.sources()} == set(DOCUMENTS)
+
+    (corpus / "cli.md").unlink()
+    report = index(corpus, chroma, embedder)
+
+    assert report.pruned > 0
+    remaining = {source.rsplit("/", 1)[-1] for source in chroma.sources()}
+    assert remaining == set(DOCUMENTS) - {"cli.md"}
+
+
+def test_a_pruned_document_can_no_longer_be_cited(corpus, chroma, embedder, chat):
+    """The whole point: a deleted file must stop turning up as evidence."""
+    index(corpus, chroma, embedder)
+    rag = RagService(embedder=embedder, store=chroma, chat=chat, top_k=5)
+
+    (corpus / "database.md").unlink()
+    index(corpus, chroma, embedder)
+
+    retrieved = rag.retrieve("Where are embeddings stored?")
+    assert not any("database.md" in item.chunk.source for item in retrieved)

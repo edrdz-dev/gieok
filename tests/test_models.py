@@ -69,3 +69,14 @@ def test_a_paginated_chunk_id_differs_from_the_unpaginated_one_for_the_same_text
     unpaginated = Chunk.create("notes.md", 0, "Same text.")
     paginated = Chunk.create("notes.md", 0, "Same text.", page=1)
     assert unpaginated.id != paginated.id
+
+
+def test_stamping_a_fingerprint_does_not_change_the_chunk_id():
+    # The fingerprint travels as metadata only -- `Chunk.create`'s id hash must stay
+    # derived from source|index|text|page alone, or every re-ingest would mint new ids
+    # for content that has not actually changed.
+    chunk = Chunk.create("notes.md", 0, "some text")
+    stamped = chunk.model_copy(update={"fingerprint": "abc123"})
+    assert stamped.id == chunk.id
+    assert stamped.fingerprint == "abc123"
+    assert chunk.fingerprint is None

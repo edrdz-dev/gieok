@@ -67,6 +67,13 @@ class InMemoryVectorStore:
     def sources(self) -> set[str]:
         return {chunk.source for chunk, _ in self.records.values()}
 
+    def fingerprints(self) -> dict[str, str]:
+        return {
+            chunk.source: chunk.fingerprint
+            for chunk, _ in self.records.values()
+            if chunk.fingerprint
+        }
+
     def delete_sources(self, sources) -> int:
         wanted = set(sources)
         doomed = [

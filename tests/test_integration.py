@@ -11,10 +11,11 @@ Ollama stays stubbed -- the tests must run on a machine with no daemon and no mo
 import pytest
 
 from conftest import build_pdf_bytes
-from gieok.core.ingestion import IngestionService
+from gieok.core.ingestion import IngestionService, _fingerprint
 from gieok.core.rag import RagService
 from gieok.db.chroma_store import ChromaVectorStore
 from gieok.filesystem.loader import DEFAULT_PATTERNS, iter_documents
+from gieok.models import Document
 
 DOCUMENTS = {
     "database.md": "The project stores embeddings in ChromaDB, a local vector database.",
@@ -131,6 +132,42 @@ def test_pruning_removes_ghost_chunks_from_a_real_collection(corpus, chroma, emb
     assert report.pruned > 0
     remaining = {source.rsplit("/", 1)[-1] for source in chroma.sources()}
     assert remaining == set(DOCUMENTS) - {"cli.md"}
+
+
+def test_fingerprint_round_trips_through_chroma(corpus, chroma, embedder):
+    """The fakes cannot prove this: `fingerprint` is a new metadata key on a real collection."""
+    index(corpus, chroma, embedder, size=400, overlap=50)
+
+    fingerprints = chroma.fingerprints()
+    assert set(fingerprints) == {str(corpus / name) for name in DOCUMENTS}
+    for name, body in DOCUMENTS.items():
+        expected = _fingerprint(Document(source=corpus / name, content=body), size=400, overlap=50)
+        assert fingerprints[str(corpus / name)] == expected
+
+
+def test_reingesting_unchanged_corpus_embeds_nothing_against_real_chroma(corpus, chroma, embedder):
+    index(corpus, chroma, embedder)
+    embedder.calls.clear()
+
+    report = index(corpus, chroma, embedder)
+
+    assert sum(len(call) for call in embedder.calls) == 0
+    assert report.documents == 0
+    assert report.unchanged == len(DOCUMENTS)
+
+
+def test_editing_a_document_drops_its_stale_chunks_in_chroma(corpus, chroma, embedder):
+    # Each source in `DOCUMENTS` is one short sentence, so it chunks to exactly one id.
+    # If an edit's old id were left behind instead of deleted, the count below would
+    # climb from 3 to 4 instead of staying put -- the bug this feature fixes.
+    index(corpus, chroma, embedder)
+    before = chroma.count()
+
+    (corpus / "cli.md").write_text("Completely rewritten paragraph about something else.")
+    report = index(corpus, chroma, embedder)
+
+    assert chroma.count() == before, "the edited file's stale chunk must be deleted, not accumulate"
+    assert report.documents == 1
 
 
 def test_a_pruned_document_can_no_longer_be_cited(corpus, chroma, embedder, chat):

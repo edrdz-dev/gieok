@@ -94,6 +94,9 @@ class Chunk(BaseModel):
     page: int | None = Field(
         default=None, description="Physical page this slice starts on, for paginated sources."
     )
+    fingerprint: str | None = Field(
+        default=None, description="Digest of the source document, for incremental re-ingest."
+    )
 
     @classmethod
     def create(cls, source: str, index: int, text: str, *, page: int | None = None) -> Chunk:

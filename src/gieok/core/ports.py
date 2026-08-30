@@ -50,6 +50,15 @@ class VectorStore(Protocol):
         """Return every distinct ``Chunk.source`` currently stored."""
         ...
 
+    def fingerprints(self) -> dict[str, str]:
+        """Return the stored fingerprint of every indexed source.
+
+        Maps `Chunk.source` to the fingerprint recorded on its chunks. A source whose
+        chunks predate this feature (no fingerprint metadata) is absent from the map, so
+        it reads as unknown and is re-embedded once.
+        """
+        ...
+
     def delete_sources(self, sources: Collection[str]) -> int:
         """Drop every chunk belonging to ``sources``.
 

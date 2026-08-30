@@ -88,6 +88,25 @@ class ChromaVectorStore:
         metadatas = result.get("metadatas") or []
         return {str(meta["source"]) for meta in metadatas if meta and meta.get("source")}
 
+    def fingerprints(self) -> dict[str, str]:
+        """Return the stored fingerprint of every indexed source.
+
+        One scan of the collection's metadata, mirroring ``sources()``. A source is
+        included only when at least one of its chunks carries a non-empty fingerprint --
+        chunks written before this feature existed have none, so that source is simply
+        absent from the map and reads as "unknown" to the caller.
+
+        Returns:
+            A mapping of source path to its fingerprint.
+        """
+        result = self._collection.get(include=["metadatas"])
+        metadatas = result.get("metadatas") or []
+        return {
+            str(meta["source"]): str(meta["fingerprint"])
+            for meta in metadatas
+            if meta and meta.get("source") and meta.get("fingerprint")
+        }
+
     def delete_sources(self, sources: Collection[str]) -> int:
         """Drop every chunk belonging to ``sources``.
 
@@ -139,6 +158,7 @@ class ChromaVectorStore:
         ):
             meta = metadata or {}
             page = meta.get("page")
+            fingerprint = meta.get("fingerprint")
             chunk = Chunk(
                 id=chunk_id,
                 source=str(meta.get("source", "unknown")),
@@ -148,6 +168,9 @@ class ChromaVectorStore:
                 # exactly the "no page" case Chunk already models -- fully backward
                 # compatible with a collection ingested before this feature.
                 page=int(page) if page is not None else None,
+                # Same backward-compatibility story as `page`: rows written before this
+                # feature simply have no fingerprint, which round-trips as None.
+                fingerprint=str(fingerprint) if fingerprint is not None else None,
             )
             # Chroma reports cosine *distance* in [0, 2]; similarity is its complement.
             retrieved.append(RetrievedChunk(chunk=chunk, score=1.0 - float(distance)))
@@ -157,9 +180,10 @@ class ChromaVectorStore:
 def _metadata(chunk: Chunk) -> dict[str, str | int]:
     """Build the metadata dict Chroma stores alongside a chunk.
 
-    Chroma rejects ``None`` as a metadata value outright, so ``page`` is included only when
-    the chunk actually has one -- an unconditional ``"page": chunk.page`` would raise for
-    every ``.md``/``.txt`` chunk.
+    Chroma rejects ``None`` as a metadata value outright, so ``page`` and ``fingerprint``
+    are each included only when the chunk actually has one -- an unconditional
+    ``"page": chunk.page`` would raise for every ``.md``/``.txt`` chunk, and the same goes
+    for ``fingerprint`` before ``IngestionService`` has stamped it.
 
     Args:
         chunk: The chunk being persisted.
@@ -170,4 +194,6 @@ def _metadata(chunk: Chunk) -> dict[str, str | int]:
     meta: dict[str, str | int] = {"source": chunk.source, "index": chunk.index}
     if chunk.page is not None:
         meta["page"] = chunk.page
+    if chunk.fingerprint is not None:
+        meta["fingerprint"] = chunk.fingerprint
     return meta

@@ -39,13 +39,18 @@ uv sync
 uv run gieok status                      # daemon reachability, models, collection size
 uv run gieok ingest ./docs               # index *.md, *.txt and *.pdf recursively
 uv run gieok ingest ./docs --reset       # rebuild the collection from scratch
+uv run gieok ingest ./docs --force       # re-embed every matched file, unchanged or not
 uv run gieok ingest ./src -p '*.py'      # custom glob, repeatable
 uv run gieok ask "How is retrieval configured?"
 uv run gieok ask "..." --top-k 8 --no-sources
 ```
 
-Re-running `ingest` over unchanged files is idempotent: chunk ids are derived from content,
-so identical chunks overwrite themselves rather than accumulating.
+Re-running `ingest` skips any file whose content is unchanged since the last run, so only
+new or edited files pay the embedding cost. Editing a file drops its stale chunks before
+writing the new ones -- chunk ids are content-derived, so unchanged files are naturally
+idempotent, but an edit alone can't tell the old chunks it left behind to disappear on its
+own; the fingerprint check is what does that. Use `--force` to re-embed matched files
+regardless (it does not drop the collection; `--reset` does that).
 
 **Supported formats:** `.md`, `.txt`, and `.pdf`. A PDF's text layer is extracted per page,
 so its citations show a page number (`report.pdf p. 12`) rather than just the file name.

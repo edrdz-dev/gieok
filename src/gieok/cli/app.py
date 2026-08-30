@@ -144,6 +144,16 @@ def ingest(
             help="Drop indexed chunks whose file is gone from the indexed scope.",
         ),
     ] = True,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help=(
+                "Re-embed every matched file even if unchanged "
+                "(does not drop the collection; use --reset for that)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Index documents into the local vector store."""
     skipped: list[SkippedDocument] = []
@@ -163,6 +173,7 @@ def ingest(
                 f"  [green]OK[/green] {source} [dim]({count} chunks)[/dim]"
             ),
             prune=prune,
+            force=force,
         )
     # Rendered after the `status` block exits, not inside it: painting a panel while the
     # spinner still owns the terminal line is what produces garbled, overlapping output.
@@ -173,6 +184,9 @@ def ingest(
         console.print(
             f"[yellow]Pruned[/yellow] {report.pruned} chunks whose file is no longer there."
         )
+
+    if report.unchanged:
+        console.print(f"[dim]Skipped {report.unchanged} unchanged file(s).[/dim]")
 
     console.print(
         f"\n[bold green]Indexed[/bold green] {report.documents} documents "
